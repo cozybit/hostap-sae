@@ -202,6 +202,11 @@ int wpa_write_rsn_ie(struct wpa_auth_config *conf, u8 *buf, size_t len,
 		num_suites++;
 	}
 #endif /* CONFIG_IEEE80211W */
+	if (conf->wpa_key_mgmt & WPA_KEY_MGMT_SAE) {
+		RSN_SELECTOR_PUT(pos, RSN_AUTH_KEY_MGMT_SAE);
+		pos += RSN_SELECTOR_LEN;
+		num_suites++;
+	}
 
 	if (num_suites == 0) {
 		wpa_printf(MSG_DEBUG, "Invalid key management type (%d).",
@@ -381,6 +386,8 @@ int wpa_validate_wpa_ie(struct wpa_authenticator *wpa_auth,
 		else if (data.key_mgmt & WPA_KEY_MGMT_FT_PSK)
 			selector = RSN_AUTH_KEY_MGMT_FT_PSK;
 #endif /* CONFIG_IEEE80211R */
+		else if (data.key_mgmt & WPA_KEY_MGMT_SAE)
+			selector = RSN_AUTH_KEY_MGMT_SAE;
 #ifdef CONFIG_IEEE80211W
 		else if (data.key_mgmt & WPA_KEY_MGMT_IEEE8021X_SHA256)
 			selector = RSN_AUTH_KEY_MGMT_802_1X_SHA256;

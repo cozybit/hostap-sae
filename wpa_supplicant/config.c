@@ -531,6 +531,8 @@ static int wpa_config_parse_key_mgmt(const struct parse_data *data,
 		else if (os_strcmp(start, "WPS") == 0)
 			val |= WPA_KEY_MGMT_WPS;
 #endif /* CONFIG_WPS */
+		else if (os_strcmp(start, "SAE") == 0)
+			val |= WPA_KEY_MGMT_SAE;
 		else {
 			wpa_printf(MSG_ERROR, "Line %d: invalid key_mgmt '%s'",
 				   line, start);
@@ -642,6 +644,16 @@ static char * wpa_config_write_key_mgmt(const struct parse_data *data,
 		pos += os_snprintf(pos, end - pos, "%sWPS",
 				   pos == buf ? "" : " ");
 #endif /* CONFIG_WPS */
+
+	if (ssid->key_mgmt & WPA_KEY_MGMT_SAE) {
+		ret = os_snprintf(pos, end - pos, "%sSAE",
+				  pos == buf ? "" : " ");
+		if (ret < 0 || ret >= end - pos) {
+			end[-1] = '\0';
+			return buf;
+		}
+		pos += ret;
+	}
 
 	return buf;
 }

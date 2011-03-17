@@ -230,6 +230,8 @@ static int rsn_key_mgmt_to_bitfield(const u8 *s)
 	if (RSN_SELECTOR_GET(s) == RSN_AUTH_KEY_MGMT_PSK_SHA256)
 		return WPA_KEY_MGMT_PSK_SHA256;
 #endif /* CONFIG_IEEE80211W */
+	if (RSN_SELECTOR_GET(s) == RSN_AUTH_KEY_MGMT_SAE)
+		return WPA_KEY_MGMT_SAE;
 	return 0;
 }
 #endif /* CONFIG_NO_WPA2 */

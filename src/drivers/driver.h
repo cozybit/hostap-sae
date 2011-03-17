@@ -516,6 +516,7 @@ struct wpa_driver_capa {
 #define WPA_DRIVER_AUTH_OPEN		0x00000001
 #define WPA_DRIVER_AUTH_SHARED		0x00000002
 #define WPA_DRIVER_AUTH_LEAP		0x00000004
+#define WPA_DRIVER_AUTH_SAE		0x00000008
 	unsigned int auth;
 
 /* Driver generated WPA/RSN IE */
@@ -1672,7 +1673,7 @@ struct wpa_driver_ops {
 	 * @session_timeout: Session timeout for the station
 	 * Returns: 0 on success, -1 on failure
 	 */
-	int (*set_radius_acl_auth)(void *priv, const u8 *mac, int accepted, 
+	int (*set_radius_acl_auth)(void *priv, const u8 *mac, int accepted,
 				   u32 session_timeout);
 
 	/**

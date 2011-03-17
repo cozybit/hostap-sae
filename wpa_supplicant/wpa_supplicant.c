@@ -968,6 +968,9 @@ int wpa_supplicant_set_suites(struct wpa_supplicant *wpa_s,
 	} else if (sel & WPA_KEY_MGMT_WPA_NONE) {
 		wpa_s->key_mgmt = WPA_KEY_MGMT_WPA_NONE;
 		wpa_dbg(wpa_s, MSG_DEBUG, "WPA: using KEY_MGMT WPA-NONE");
+	} else if (sel & WPA_KEY_MGMT_SAE) {
+		wpa_s->key_mgmt = WPA_KEY_MGMT_SAE;
+		wpa_dbg(wpa_s, MSG_DEBUG, "WPA: using KEY_MGMT SAE");
 	} else {
 		wpa_msg(wpa_s, MSG_WARNING, "WPA: Failed to select "
 			"authenticated key management type");
@@ -1130,7 +1133,8 @@ void wpa_supplicant_associate(struct wpa_supplicant *wpa_s,
 			       WPA_KEY_MGMT_FT_IEEE8021X |
 			       WPA_KEY_MGMT_FT_PSK |
 			       WPA_KEY_MGMT_IEEE8021X_SHA256 |
-			       WPA_KEY_MGMT_PSK_SHA256))) {
+			       WPA_KEY_MGMT_PSK_SHA256 |
+			       WPA_KEY_MGMT_SAE))) {
 		int try_opportunistic;
 		try_opportunistic = ssid->proactive_key_caching &&
 			(ssid->proto & WPA_PROTO_RSN);
