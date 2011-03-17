@@ -610,3 +610,8 @@ int wpa_bss_get_bit_rates(const struct wpa_bss *bss, u8 **rates)
 	*rates = r;
 	return len;
 }
+
+int inline wpa_is_mbss(struct wpa_bss *bss)
+{
+	return bss && !(bss->caps & (IEEE80211_CAP_IBSS | IEEE80211_CAP_ESS));
+}

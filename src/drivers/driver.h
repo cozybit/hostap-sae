@@ -109,6 +109,7 @@ struct hostapd_hw_modes {
 #define IEEE80211_MODE_INFRA	0
 #define IEEE80211_MODE_IBSS	1
 #define IEEE80211_MODE_AP	2
+#define IEEE80211_MODE_MESH	5  /* should match WPAS_MODE_MESH */
 
 #define IEEE80211_CAP_ESS	0x0001
 #define IEEE80211_CAP_IBSS	0x0002
@@ -577,6 +578,8 @@ struct wpa_driver_capa {
 	 */
 	unsigned int max_stations;
 };
+/* This interface supports mesh */
+#define WPA_DRIVER_FLAGS_MESH_CAPABLE			0x00010000
 
 
 struct hostapd_data;
@@ -2218,6 +2221,14 @@ struct wpa_driver_ops {
 			      const u8 *buf, size_t len);
 
 	int (*tdls_oper)(void *priv, enum tdls_oper oper, const u8 *peer);
+	/**
+	 * join_mesh - Join a mesh newtwork
+	 * @priv: Private driver interface data
+	 * @params: Mesh setup parameters
+	 * Returns: 0 on success, error on failure
+	 */
+	int (*join_mesh)(void *priv,
+			 struct wpa_driver_associate_params *params);
 };
 
 
@@ -2615,7 +2626,17 @@ enum wpa_event_type {
 	EVENT_P2P_PROV_DISC_REQUEST,
 	EVENT_P2P_PROV_DISC_RESPONSE,
 	EVENT_P2P_SD_REQUEST,
-	EVENT_P2P_SD_RESPONSE
+	EVENT_P2P_SD_RESPONSE,
+
+	/**
+	 * EVENT_MESH_RSN_START - Request RSN authentication in Mesh
+	 *
+	 * The driver can use this event to inform wpa_supplicant about a STA
+	 * in an Mesh BSS with which protected frames could be exchanged. This
+	 * event starts RSN authentication with the other STA to authenticate
+	 * the STA and set up encryption keys with it.
+	 */
+	EVENT_MESH_RSN_START,
 };
 
 
@@ -2833,6 +2854,13 @@ union wpa_event_data {
 	struct ibss_rsn_start {
 		u8 peer[ETH_ALEN];
 	} ibss_rsn_start;
+
+	/**
+	 * struct mesh_rsn_start - Data for EVENT_MESH_RSN_START
+	 */
+	struct mesh_rsn_start {
+		u8 candidate[ETH_ALEN];
+	} mesh_rsn_start;
 
 	/**
 	 * struct auth_info - Data for EVENT_AUTH events

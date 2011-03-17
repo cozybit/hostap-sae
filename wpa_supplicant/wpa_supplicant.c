@@ -41,6 +41,7 @@
 #include "wpas_glue.h"
 #include "wps_supplicant.h"
 #include "ibss_rsn.h"
+#include "mesh_rsn.h"
 #include "sme.h"
 #include "ap.h"
 #include "p2p_supplicant.h"
@@ -277,6 +278,10 @@ void wpa_supplicant_initiate_eapol(struct wpa_supplicant *wpa_s)
 		return;
 	}
 #endif /* CONFIG_IBSS_RSN */
+#ifdef CONFIG_MESH_RSN
+	/* TODO: Initiate AMPE */
+	return;
+#endif /* CONFIG_MESH_RSN */
 
 	eapol_sm_notify_eap_success(wpa_s->eapol, FALSE);
 	eapol_sm_notify_eap_fail(wpa_s->eapol, FALSE);
@@ -437,6 +442,10 @@ static void wpa_supplicant_cleanup(struct wpa_supplicant *wpa_s)
 #ifdef CONFIG_P2P
 	wpas_p2p_deinit(wpa_s);
 #endif /* CONFIG_P2P */
+
+#ifdef CONFIG_MESH_RSN
+	mesh_rsn_deinit(wpa_s);
+#endif /* CONFIG_MESH_RSN */
 
 	os_free(wpa_s->next_scan_freqs);
 	wpa_s->next_scan_freqs = NULL;
@@ -1316,8 +1325,13 @@ void wpa_supplicant_associate(struct wpa_supplicant *wpa_s,
 
 	if (wpa_s->drv_flags & WPA_DRIVER_FLAGS_USER_SPACE_MLME)
 		ret = ieee80211_sta_associate(wpa_s, &params);
-	else
+	else if (wpa_is_mbss(bss))
+		ret = wpa_drv_join_mesh(wpa_s, &params);
+	else {
+		wpa_msg(wpa_s, MSG_ERROR, "waitaminute bss=%p bss->caps=%d", bss, bss->caps);
+		exit(-1);
 		ret = wpa_drv_associate(wpa_s, &params);
+	}
 	if (ret < 0) {
 		wpa_msg(wpa_s, MSG_INFO, "Association request to the driver "
 			"failed");
@@ -1355,6 +1369,12 @@ void wpa_supplicant_associate(struct wpa_supplicant *wpa_s,
 		 */
 		wpa_supplicant_cancel_auth_timeout(wpa_s);
 #endif /* CONFIG_IBSS_RSN */
+#ifdef CONFIG_MESH_RSN
+	} else if (ssid->mode == WPAS_MODE_MESH &&
+		   wpa_s->key_mgmt != WPA_KEY_MGMT_NONE &&
+		   wpa_s->key_mgmt != WPA_KEY_MGMT_WPA_NONE) {
+		wpa_supplicant_cancel_auth_timeout(wpa_s);
+#endif /* CONFIG_MESH_RSN */
 	} else {
 		/* Timeout for IEEE 802.11 authentication and association */
 		int timeout = 60;
@@ -2201,6 +2221,13 @@ next_driver:
 		return -1;
 	}
 #endif /* CONFIG_P2P */
+
+#ifdef CONFIG_MESH_RSN
+	if (mesh_rsn_init(wpa_s->global, wpa_s) < 0) {
+		wpa_msg(wpa_s, MSG_ERROR, "Failed to init Mesh RSN");
+		return -1;
+	}
+#endif /* CONFIG_MESH_RSN */
 
 	if (wpa_bss_init(wpa_s) < 0)
 		return -1;

@@ -37,6 +37,7 @@
 #include "wpas_glue.h"
 #include "wps_supplicant.h"
 #include "ibss_rsn.h"
+#include "mesh_rsn.h"
 #include "sme.h"
 #include "p2p_supplicant.h"
 #include "bgscan.h"
@@ -1943,15 +1944,18 @@ void wpa_supplicant_event(void *ctx, enum wpa_event_type event,
 		ap_rx_from_unknown_sta(wpa_s, data->rx_from_unknown.frame,
 				       data->rx_from_unknown.len);
 		break;
+#endif /* CONFIG_AP */
+#if defined(CONFIG_AP) || defined(CONFIG_MESH_RSN) || defined(CONFIG_P2P)
 	case EVENT_RX_MGMT:
-		if (wpa_s->ap_iface == NULL) {
+		{
+		u16 fc, stype;
+		const struct ieee80211_mgmt *mgmt;
+		mgmt = (const struct ieee80211_mgmt *)
+			data->rx_mgmt.frame;
+		fc = le_to_host16(mgmt->frame_control);
+		stype = WLAN_FC_GET_STYPE(fc);
 #ifdef CONFIG_P2P
-			u16 fc, stype;
-			const struct ieee80211_mgmt *mgmt;
-			mgmt = (const struct ieee80211_mgmt *)
-				data->rx_mgmt.frame;
-			fc = le_to_host16(mgmt->frame_control);
-			stype = WLAN_FC_GET_STYPE(fc);
+		if (wpa_s->ap_iface == NULL) {
 			if (stype == WLAN_FC_STYPE_PROBE_REQ &&
 			    data->rx_mgmt.frame_len > 24) {
 				const u8 *src = mgmt->sa;
@@ -1962,14 +1966,25 @@ void wpa_supplicant_event(void *ctx, enum wpa_event_type event,
 				wpas_p2p_probe_req_rx(wpa_s, src, ie, ie_len);
 				break;
 			}
-#endif /* CONFIG_P2P */
 			wpa_dbg(wpa_s, MSG_DEBUG, "AP: ignore received "
 				"management frame in non-AP mode");
 			break;
 		}
+#endif /* CONFIG_P2P */
+#ifdef CONFIG_MESH_RSN
+		if (stype == WLAN_FC_STYPE_AUTH &&
+				data->rx_mgmt.frame_len > 24) {
+			mesh_rsn_rx_frame(wpa_s, mgmt,
+					data->rx_mgmt.frame_len);
+			break;
+		}
+#endif /* CONFIG_MESH_RSN */
+#ifdef CONFIG_AP
 		ap_mgmt_rx(wpa_s, &data->rx_mgmt);
-		break;
 #endif /* CONFIG_AP */
+		break;
+		}
+#endif /* (CONFIG_AP || CONFIG_MESH_RSN || CONFIG_P2P) */
 	case EVENT_RX_ACTION:
 		wpa_dbg(wpa_s, MSG_DEBUG, "Received Action frame: SA=" MACSTR
 			" Category=%u DataLen=%d freq=%d MHz",
@@ -2178,6 +2193,11 @@ void wpa_supplicant_event(void *ctx, enum wpa_event_type event,
 						  data->low_ack.addr);
 #endif /* CONFIG_AP */
 		break;
+#ifdef CONFIG_MESH_RSN
+	case EVENT_MESH_RSN_START:
+		mesh_rsn_start(wpa_s, data->mesh_rsn_start.candidate);
+		break;
+#endif /* CONFIG_MESH_RSN */
 	default:
 		wpa_msg(wpa_s, MSG_INFO, "Unknown event %d", event);
 		break;

@@ -90,4 +90,5 @@ struct wpabuf * wpa_bss_get_vendor_ie_multi(const struct wpa_bss *bss,
 int wpa_bss_get_max_rate(const struct wpa_bss *bss);
 int wpa_bss_get_bit_rates(const struct wpa_bss *bss, u8 **rates);
 
+inline int wpa_is_mbss(struct wpa_bss *bss);
 #endif /* BSS_H */

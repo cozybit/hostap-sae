@@ -437,3 +437,6 @@ CONFIG_PEERKEY=y
 # should only be considered for builds that are known to be used on devices
 # that meet the requirements described above.
 #CONFIG_NO_RANDOM_POOL=y
+#
+# Enable mesh RSN with SAE (Simultaneous Authentication of Equals)
+#CONFIG_MESH_RSN=y

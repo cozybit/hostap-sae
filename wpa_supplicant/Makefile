@@ -194,6 +194,15 @@ CFLAGS += -DCONFIG_P2P_STRICT
 endif
 endif
 
+ifdef CONFIG_MESH_RSN
+OBJS += mesh_rsn.o
+OBJS += ../src/sae/sae.o
+OBJS += ../src/sae/service.o
+OBJS += ../src/sae/common.o
+CFLAGS += -DCONFIG_MESH_RSN
+NEED_80211_COMMON=y
+endif
+
 ifdef CONFIG_NO_WPA2
 CFLAGS += -DCONFIG_NO_WPA2
 endif
