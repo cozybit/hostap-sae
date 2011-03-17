@@ -1272,7 +1272,8 @@ static void wpa_supplicant_event_assoc(struct wpa_supplicant *wpa_s,
 	if (wpa_s->key_mgmt == WPA_KEY_MGMT_NONE ||
 	    wpa_s->key_mgmt == WPA_KEY_MGMT_WPA_NONE ||
 	    (wpa_s->current_ssid &&
-	     wpa_s->current_ssid->mode == IEEE80211_MODE_IBSS)) {
+	     (wpa_s->current_ssid->mode == IEEE80211_MODE_IBSS ||
+	      wpa_s->current_ssid->mode == IEEE80211_MODE_MESH))) {
 		wpa_supplicant_cancel_auth_timeout(wpa_s);
 		wpa_supplicant_set_state(wpa_s, WPA_COMPLETED);
 	} else if (!ft_completed) {

@@ -279,7 +279,18 @@ void wpa_supplicant_initiate_eapol(struct wpa_supplicant *wpa_s)
 	}
 #endif /* CONFIG_IBSS_RSN */
 #ifdef CONFIG_MESH_RSN
-	/* TODO: Initiate AMPE */
+	if (ssid->mode == WPAS_MODE_MESH &&
+	    wpa_s->key_mgmt != WPA_KEY_MGMT_NONE &&
+	    wpa_s->key_mgmt != WPA_KEY_MGMT_WPA_NONE) {
+		/*
+		 * Mesh authentication is per-STA and we can disable the
+		 * per-BSSID EAPOL authentication.
+		 */
+		eapol_sm_notify_portControl(wpa_s->eapol, ForceAuthorized);
+		eapol_sm_notify_eap_success(wpa_s->eapol, TRUE);
+		eapol_sm_notify_eap_fail(wpa_s->eapol, FALSE);
+		return;
+	}
 	return;
 #endif /* CONFIG_MESH_RSN */
 
@@ -1370,6 +1381,10 @@ void wpa_supplicant_associate(struct wpa_supplicant *wpa_s,
 	} else if (ssid->mode == WPAS_MODE_MESH &&
 		   wpa_s->key_mgmt != WPA_KEY_MGMT_NONE &&
 		   wpa_s->key_mgmt != WPA_KEY_MGMT_WPA_NONE) {
+		/*
+		 * Mesh authentication is per-STA and we can disable the
+		 * per-BSSID authentication.
+		 */
 		wpa_supplicant_cancel_auth_timeout(wpa_s);
 #endif /* CONFIG_MESH_RSN */
 	} else {
