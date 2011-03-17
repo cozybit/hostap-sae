@@ -6520,8 +6520,7 @@ static int wpa_driver_nl80211_join_mesh(void *priv, struct
 	if (!container)
 		goto nla_put_failure;
 
-	/* TODO: this auto_open plinks should be passed in params */
-	NLA_PUT_U32(msg, NL80211_MESHCONF_AUTO_OPEN_PLINKS, 0);
+	NLA_PUT_U32(msg, NL80211_MESHCONF_AUTO_OPEN_PLINKS, 1);
 	nla_nest_end(msg, container);
 
 	container = nla_nest_start(msg,
