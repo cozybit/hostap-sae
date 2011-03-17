@@ -1610,6 +1610,13 @@ static const struct parse_data ssid_fields[] = {
 	{ INT(wpa_ptk_rekey) },
 	{ STR(bgscan) },
 	{ FUNC(sae_group_list) },
+	{ INT(sae_retrans) },
+	{ INT(sae_thresh) },
+	{ INT(sae_blacklist) },
+	{ INT(sae_debug) },
+	{ INT(sae_lifetime) },
+	{ INT(sae_giveup) },
+
 };
 
 #undef OFFSET

@@ -414,6 +414,12 @@ struct wpa_ssid {
 
 	/* SAE elliptic curve groups */
 	int *sae_group_list;
+        int sae_retrans;
+        int sae_thresh;
+        int sae_blacklist;
+        int sae_debug;
+        int sae_lifetime;
+        int sae_giveup;
 };
 
 #endif /* CONFIG_SSID_H */
