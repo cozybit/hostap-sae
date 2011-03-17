@@ -82,8 +82,8 @@ static struct wpa_ssid * find_valid_mesh_ssid_in_group(
 			continue;
 		}
 
-		if (!ssid->sae_groups ||
-				(ssid->sae_groups && !ssid->sae_groups[0])) {
+		if (!ssid->sae_group_list ||
+				(ssid->sae_group_list && !ssid->sae_group_list[0])) {
 			wpa_dbg(wpa_s, MSG_WARNING, "   skip - sae group "
 					"list required");
 			continue;
@@ -177,18 +177,14 @@ int mesh_rsn_init(struct wpa_global *global, struct wpa_supplicant *wpa_s)
 	/* Done crafting the bss struct. Now initialize the SAE library */
 	os_memcpy(&saeconf, ssid->ssid, sizeof(saeconf));
 	for (i = 0; i < SAE_MAX_EC_GROUPS; i++) {
-		if (!ssid->sae_groups[i])
+		if (!ssid->sae_group_list[i])
 			break;
-		saeconf.group[i] = ssid->sae_groups[i];
+		saeconf.group[i] = ssid->sae_group_list[i];
 	}
 
 	saeconf.num_groups = i;
-	saeconf.debug = ssid->sae_debug;
-	saeconf.blacklist_timeout = ssid->sae_blacklist;
-	saeconf.retrans = ssid->sae_retrans;
-	saeconf.open_threshold = ssid->sae_thresh;
-	saeconf.pmk_expiry = ssid->sae_lifetime;
-	saeconf.giveup_threshold = ssid->sae_giveup;
+	saeconf.debug = 7; 		/* TODO: tie to with wpa_supplicant debug facility? */
+	saeconf.blacklist_timeout = 5; 	/* TODO: add to conf file */
 
 	if (SAE_MAX_PASSWORD_LEN > strlen(ssid->passphrase) + 1)
 		os_memcpy(saeconf.pwd, ssid->passphrase, strlen(ssid->passphrase) + 1);
@@ -256,8 +252,7 @@ void fin(int status, char *peer, char *buf, int len, void *cookie)
 {
 	struct hostapd_sta_add_params params;
 	struct wpa_supplicant *wpa_s = cookie;
-	/* TODO: get these rates from somewhere.  Probably from NL80211
-	 * NEW_PEER_CANDIDATE event. */
+	/* TODO: get from somewhere... */
 	uint8_t supported_rates[] = { 2, 4, 10, 22, 96, 108 };
 
 	wpa_printf(MSG_DEBUG, "libsae: candidate peer (" MACSTR ") status %d", MAC2STR(peer), status);

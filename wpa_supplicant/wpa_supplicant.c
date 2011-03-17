@@ -1327,11 +1327,8 @@ void wpa_supplicant_associate(struct wpa_supplicant *wpa_s,
 		ret = ieee80211_sta_associate(wpa_s, &params);
 	else if (wpa_is_mbss(bss))
 		ret = wpa_drv_join_mesh(wpa_s, &params);
-	else {
-		wpa_msg(wpa_s, MSG_ERROR, "waitaminute bss=%p bss->caps=%d", bss, bss->caps);
-		exit(-1);
+	else
 		ret = wpa_drv_associate(wpa_s, &params);
-	}
 	if (ret < 0) {
 		wpa_msg(wpa_s, MSG_INFO, "Association request to the driver "
 			"failed");

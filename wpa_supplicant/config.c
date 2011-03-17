@@ -935,6 +935,45 @@ static char * wpa_config_write_auth_alg(const struct parse_data *data,
 }
 #endif /* NO_CONFIG_WRITE */
 
+static int * wpa_config_parse_sae_groups(const char *value)
+{
+	int *groups;
+	size_t used, len;
+	const char *pos;
+
+	used = 0;
+	len = 10;
+	groups = os_zalloc((len + 1) * sizeof(int));
+	if (groups == NULL)
+		return NULL;
+
+	pos = value;
+	while (pos) {
+		while (*pos == ' ')
+			pos++;
+		if (used == len) {
+			int *n;
+			size_t i;
+			n = os_realloc(groups, (len * 2 + 1) * sizeof(int));
+			if (n == NULL) {
+				os_free(groups);
+				return NULL;
+			}
+			for (i = len; i <= len * 2; i++)
+				n[i] = 0;
+			groups = n;
+			len *= 2;
+		}
+
+		groups[used] = atoi(pos);
+		if (groups[used] == 0)
+			break;
+		used++;
+		pos = os_strchr(pos + 1, ' ');
+	}
+
+	return groups;
+}
 
 static int * wpa_config_parse_freqs(const struct parse_data *data,
 				    struct wpa_ssid *ssid, int line,
@@ -995,6 +1034,21 @@ static int wpa_config_parse_scan_freq(const struct parse_data *data,
 }
 
 
+static int wpa_config_parse_sae_group_list(const struct parse_data *data,
+				      struct wpa_ssid *ssid, int line,
+				      const char *value)
+{
+	int *sae_groups;
+
+	sae_groups = wpa_config_parse_sae_groups(value);
+	if (sae_groups == NULL)
+		return -1;
+	os_free(ssid->sae_group_list);
+	ssid->sae_group_list = sae_groups;
+
+	return 0;
+}
+
 static int wpa_config_parse_freq_list(const struct parse_data *data,
 				      struct wpa_ssid *ssid, int line,
 				      const char *value)
@@ -1044,6 +1098,38 @@ static char * wpa_config_write_freqs(const struct parse_data *data,
 	return buf;
 }
 
+static char * wpa_config_write_sae_group_list(const struct parse_data *data,
+				     struct wpa_ssid *ssid)
+{
+	int *sae_groups = ssid->sae_group_list;
+	char *buf, *pos, *end;
+	int i, ret;
+	size_t count;
+
+	if (sae_groups == NULL)
+		return NULL;
+
+	count = 0;
+	for (i = 0; sae_groups[i]; i++)
+		count++;
+
+	pos = buf = os_zalloc(10 * count + 1);
+	if (buf == NULL)
+		return NULL;
+	end = buf + 10 * count + 1;
+
+	for (i = 0; sae_groups[i]; i++) {
+		ret = os_snprintf(pos, end - pos, "%s%u",
+				  i == 0 ? "" : " ", sae_groups[i]);
+		if (ret < 0 || ret >= end - pos) {
+			end[-1] = '\0';
+			return buf;
+		}
+		pos += ret;
+	}
+
+	return buf;
+}
 
 static char * wpa_config_write_scan_freq(const struct parse_data *data,
 					 struct wpa_ssid *ssid)
@@ -1523,6 +1609,7 @@ static const struct parse_data ssid_fields[] = {
 	{ INT_RANGE(frequency, 0, 10000) },
 	{ INT(wpa_ptk_rekey) },
 	{ STR(bgscan) },
+	{ FUNC(sae_group_list) },
 };
 
 #undef OFFSET
@@ -1689,6 +1776,7 @@ void wpa_config_free_ssid(struct wpa_ssid *ssid)
 	os_free(ssid->scan_freq);
 	os_free(ssid->freq_list);
 	os_free(ssid->bgscan);
+	os_free(ssid->sae_group_list);
 	os_free(ssid);
 }
 

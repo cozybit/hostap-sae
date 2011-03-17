@@ -411,6 +411,9 @@ struct wpa_ssid {
 	 * WPS or similar so that they may be exported.
 	 */
 	int export_keys;
+
+	/* SAE elliptic curve groups */
+	int *sae_group_list;
 };
 
 #endif /* CONFIG_SSID_H */
