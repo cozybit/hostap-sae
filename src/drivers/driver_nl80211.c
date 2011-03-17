@@ -582,7 +582,6 @@ static void mlme_event_auth(struct wpa_driver_nl80211_data *drv,
 		event.auth.ies = mgmt->u.auth.variable;
 		event.auth.ies_len = len - 24 - sizeof(mgmt->u.auth);
 	}
-
 	wpa_supplicant_event(drv->ctx, EVENT_AUTH, &event);
 }
 
@@ -1288,6 +1287,24 @@ static void nl80211_new_station_event(struct wpa_driver_nl80211_data *drv,
 	wpa_supplicant_event(drv->ctx, EVENT_IBSS_RSN_START, &data);
 }
 
+static void nl80211_new_peer_candidate_event(struct wpa_driver_nl80211_data *drv,
+				      struct nlattr **tb)
+{
+	u8 *addr;
+	union wpa_event_data data;
+
+	if (tb[NL80211_ATTR_MAC] == NULL)
+		return;
+	addr = nla_data(tb[NL80211_ATTR_MAC]);
+	wpa_printf(MSG_DEBUG, "nl80211: New mesh peer " MACSTR, MAC2STR(addr));
+	if (drv->nlmode != NL80211_IFTYPE_MESH_POINT)
+		return;
+
+	os_memset(&data, 0, sizeof(data));
+	os_memcpy(data.mesh_rsn_start.candidate, addr, ETH_ALEN);
+	wpa_supplicant_event(drv->ctx, EVENT_MESH_RSN_START, &data);
+}
+
 
 static int process_event(struct nl_msg *msg, void *arg)
 {
@@ -1404,6 +1421,9 @@ static int process_event(struct nl_msg *msg, void *arg)
 	case NL80211_CMD_NEW_STATION:
 		nl80211_new_station_event(drv, tb);
 		break;
+	case NL80211_CMD_NEW_PEER_CANDIDATE:
+		nl80211_new_peer_candidate_event(drv, tb);
+		break;
 	default:
 		wpa_printf(MSG_DEBUG, "nl80211: Ignored unknown event "
 			   "(cmd=%d)", gnlh->cmd);
@@ -1474,6 +1494,7 @@ struct wiphy_info_data {
 	int ap_supported;
 	int p2p_supported;
 	int auth_supported;
+	int mesh_supported;
 	int connect_supported;
 	int offchan_tx_supported;
 	int max_remain_on_chan;
@@ -1508,6 +1529,9 @@ static int wiphy_info_handler(struct nl_msg *msg, void *arg)
 				break;
 			case NL80211_IFTYPE_P2P_CLIENT:
 				p2p_client_supported = 1;
+				break;
+			case NL80211_IFTYPE_MESH_POINT:
+				info->mesh_supported = 1;
 				break;
 			}
 		}
@@ -1609,6 +1633,8 @@ static int wpa_driver_nl80211_capa(struct wpa_driver_nl80211_data *drv)
 	drv->capa.flags |= WPA_DRIVER_FLAGS_SET_KEYS_AFTER_ASSOC_DONE;
 	if (info.p2p_supported)
 		drv->capa.flags |= WPA_DRIVER_FLAGS_P2P_CAPABLE;
+	if (info.mesh_supported)
+		drv->capa.flags |= WPA_DRIVER_FLAGS_MESH_CAPABLE;
 	drv->capa.max_remain_on_chan = info.max_remain_on_chan;
 
 	return 0;
@@ -3557,6 +3583,13 @@ static int wpa_driver_nl80211_send_mlme(void *priv, const u8 *data,
 					      data, data_len, NULL);
 	}
 
+	if (drv->nlmode == NL80211_IFTYPE_MESH_POINT &&
+	    WLAN_FC_GET_TYPE(fc) == WLAN_FC_TYPE_MGMT &&
+	    WLAN_FC_GET_STYPE(fc) == WLAN_FC_STYPE_AUTH) {
+		return nl80211_send_frame_cmd(drv, drv->assoc_freq, 0,
+					      data, data_len, NULL);
+	}
+
 	if (WLAN_FC_GET_TYPE(fc) == WLAN_FC_TYPE_MGMT &&
 	    WLAN_FC_GET_STYPE(fc) == WLAN_FC_STYPE_AUTH) {
 		/*
@@ -4795,14 +4828,17 @@ static int wpa_driver_nl80211_set_mode(void *priv, int mode)
 	int i;
 
 	switch (mode) {
-	case 0:
+	case IEEE80211_MODE_INFRA:
 		nlmode = NL80211_IFTYPE_STATION;
 		break;
-	case 1:
+	case IEEE80211_MODE_IBSS:
 		nlmode = NL80211_IFTYPE_ADHOC;
 		break;
-	case 2:
+	case IEEE80211_MODE_AP:
 		nlmode = NL80211_IFTYPE_AP;
+		break;
+	case IEEE80211_MODE_MESH:
+		nlmode = NL80211_IFTYPE_MESH_POINT;
 		break;
 	default:
 		return -1;
@@ -6429,6 +6465,99 @@ static const char * nl80211_get_radio_name(void *priv)
 }
 
 
+static int wpa_driver_nl80211_join_mesh(void *priv, struct
+		wpa_driver_associate_params *params)
+{
+	struct i802_bss *bss = priv;
+	struct wpa_driver_nl80211_data *drv = bss->drv;
+	struct nl_msg *msg;
+	uint8_t cmd = NL80211_CMD_JOIN_MESH;
+	int ret = -ENOMEM;
+	char *pret;
+	u16 type;
+
+	if (params->mode != IEEE80211_MODE_MESH ||
+		!params->ssid || !params->ssid_len ||
+		!params->wpa_ie || !params->wpa_ie_len ||
+		!params->freq) {
+		wpa_printf(MSG_DEBUG, "nl80211: Could not configure driver to "
+			   "use mesh mode. mode=%d, ssid=%p, ssid_len=%d, "
+			   " wpa_ie=%p wpa_ie_len=%d freq=%d", params->mode,
+			   params->ssid, params->ssid_len, params->wpa_ie,
+			   params->wpa_ie_len, params->freq);
+		return -EINVAL;
+	}
+
+	if (wpa_driver_nl80211_set_mode(bss, IEEE80211_MODE_MESH) < 0) {
+		wpa_printf(MSG_DEBUG, "nl80211: Could not configure driver to "
+			   "use mesh mode");
+	}
+
+	type = (WLAN_FC_TYPE_MGMT << 2) | (WLAN_FC_STYPE_AUTH << 4);
+	if (nl80211_register_frame(drv, drv->nl_handle_event, type, (u8 *)
+				"\x03", 1) < 0) {
+		wpa_printf(MSG_DEBUG, "nl80211: Failed to register Auth "
+				"frame processing - ignore for now");
+	}
+
+	msg = nlmsg_alloc();
+	if (!msg)
+        	return -ENOMEM;
+
+
+	wpa_printf(MSG_DEBUG, "meshd: Starting mesh with mesh id = %s",
+			params->ssid);
+
+	pret = genlmsg_put(msg, 0, 0,
+			genl_family_get_id(drv->nl80211), 0, 0, cmd, 0);
+
+	if (pret == NULL)
+		goto nla_put_failure;
+
+	struct nlattr *container = nla_nest_start(msg,
+			NL80211_ATTR_MESH_CONFIG);
+
+	if (!container)
+		goto nla_put_failure;
+
+	/* TODO: this auto_open plinks should be passed in params */
+	NLA_PUT_U32(msg, NL80211_MESHCONF_AUTO_OPEN_PLINKS, 0);
+	nla_nest_end(msg, container);
+
+	container = nla_nest_start(msg,
+			NL80211_ATTR_MESH_SETUP);
+
+	if (!container)
+		goto nla_put_failure;
+
+	NLA_PUT_FLAG(msg, NL80211_MESH_SETUP_ENABLE_SECURITY);
+	NLA_PUT(msg, NL80211_MESH_SETUP_IE, params->wpa_ie_len,
+			params->wpa_ie);
+
+	nla_nest_end(msg, container);
+
+	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, drv->ifindex);
+	NLA_PUT(msg, NL80211_ATTR_MESH_ID, params->ssid_len, params->ssid);
+
+	ret = send_and_recv_msgs(drv, msg, NULL, NULL);
+	if (ret < 0)
+		wpa_printf(MSG_ERROR, "Mesh start failed: %d (%s)\n", ret,
+				strerror(-ret));
+	else
+		ret = 0;
+
+	os_memcpy(drv->ssid, params->ssid, params->ssid_len);
+	drv->ssid_len = params->ssid_len;
+	drv->assoc_freq = params->freq;
+	drv->associated = 1;
+	return ret;
+nla_put_failure:
+	wpa_printf(MSG_ERROR, "Mesh start failed: %d (%s)\n", ret,
+			strerror(-ret));
+	return ret;
+}
+
+
 const struct wpa_driver_ops wpa_driver_nl80211_ops = {
 	.name = "nl80211",
 	.desc = "Linux nl80211/cfg80211",
@@ -6497,4 +6626,7 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
 	.set_intra_bss = nl80211_set_intra_bss,
 	.set_param = nl80211_set_param,
 	.get_radio_name = nl80211_get_radio_name,
+#ifdef CONFIG_MESH_RSN
+	.join_mesh = wpa_driver_nl80211_join_mesh,
+#endif
 };
