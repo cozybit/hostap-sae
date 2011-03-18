@@ -189,8 +189,26 @@ network={
 }
 </programlisting></blockquote>
       </listitem>
-    </orderedlist>
 
+      <listitem>
+	<para>Mesh network using SAE authentication. Requires the -Dnl80211
+	command line switch.</para>
+
+<blockquote><programlisting>
+network={
+        ssid="test mesh"
+        mode=5
+        frequency=2412
+        proto=RSN
+        key_mgmt=SAE
+        pairwise=CCMP
+        group=CCMP
+        psk="This is a secret place"
+        sae_group_list=19 26 21 25 20
+}
+</programlisting></blockquote>
+      </listitem>
+    </orderedlist>
 
 
 
