@@ -230,7 +230,7 @@ int mesh_rsn_start(struct wpa_supplicant *wpa_s, u8 *peer_mac)
 	/* libsae only understands the language of frames:  craft a fake beacon to
 	 * trigger an authentication */
 	os_memset(&bcn, 0, sizeof(bcn));
-	bcn.frame_control = htole16(
+	bcn.frame_control = host_to_le16(
 			(IEEE802_11_FC_TYPE_MGMT << 2 |
 			 IEEE802_11_FC_STYPE_BEACON << 4));
 
