@@ -279,6 +279,8 @@ void fin(int status, char *peer, char *buf, int len, void *cookie)
 	params.addr = (u8 *)peer;
 	params.ht_capabilities = NULL;
 	wpa_drv_sta_add(wpa_s, &params);
+	if (wpa_drv_sta_set_flags(wpa_s, (u8 *) peer, 0, WPA_STA_AUTHORIZED, ~WPA_STA_AUTHORIZED))
+		wpa_printf(MSG_WARNING, "failed to set AUTHORIZED flag on authenticated peer candidate");
 	wpa_supplicant_cancel_auth_timeout(wpa_s);
 }
 
